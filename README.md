@@ -7,7 +7,7 @@ case, we have Google Cloud LB and nginx.
 
 Files:
 
-* [example.yaml][example.yaml] - example multi-tier setup
-* [ingress-setup.yaml][ingress-setup.yaml] - nginx ingress controller setup
+* [example.yaml](example.yaml) - example multi-tier setup
+* [ingress-setup.yaml](ingress-setup.yaml) - nginx ingress controller setup
 
 
