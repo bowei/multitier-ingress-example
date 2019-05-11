@@ -1,0 +1,183 @@
+## Ingress for the main website, using GCLB.
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: main-site
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /foo
+        backend:
+          serviceName: foo-nginx
+          servicePort: 80
+      - path: /foo/*
+        backend:
+          serviceName: foo-nginx
+          servicePort: 80
+      - path: /bar
+        backend:
+          serviceName: bar-backend
+          servicePort: 80
+      - path: /bar/*
+        backend:
+          serviceName: bar-backend
+          servicePort: 80
+
+## Special nginx service (see ingress-setup.yaml) for just /foo.* paths.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: foo-nginx
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+  - name: https
+    port: 443
+    protocol: TCP
+
+## Ingress for /foo.*. that will be controlled by nginx.
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: foo-site
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        backend:
+          serviceName: foo-backend
+          servicePort: 80
+      - path: /foo
+        backend:
+          serviceName: foo-backend
+          servicePort: 80
+      - path: /foo/.*/qux
+        backend:
+          serviceName: qux-backend
+          servicePort: 80
+
+## Backends (for demo purposes).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: foo-backend
+  namespace: default
+spec:
+  selector:
+    app: foo
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 9376
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: foo
+  name: foo
+spec:
+  minReadySeconds: 60
+  selector:
+    matchLabels:
+      app: foo
+  template:
+    metadata:
+      labels:
+        app: foo
+    spec:
+      containers:
+      - image: k8s.gcr.io/serve_hostname:v1.4
+        name: hostname
+      terminationGracePeriodSeconds: 60
+
+# The "bar" service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bar-backend
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: bar
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 9376
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: bar
+  name: bar
+spec:
+  minReadySeconds: 60
+  selector:
+    matchLabels:
+      app: bar
+  template:
+    metadata:
+      labels:
+        app: bar
+    spec:
+      containers:
+      - image: k8s.gcr.io/serve_hostname:v1.4
+        name: hostname
+      terminationGracePeriodSeconds: 60
+
+# The "qux" service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qux-backend
+  namespace: default
+spec:
+  selector:
+    app: qux
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 9376
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: qux
+  name: qux
+spec:
+  minReadySeconds: 60
+  selector:
+    matchLabels:
+      app: qux
+  template:
+    metadata:
+      labels:
+        app: qux
+    spec:
+      containers:
+      - image: k8s.gcr.io/serve_hostname:v1.4
+        name: hostname
+      terminationGracePeriodSeconds: 60
